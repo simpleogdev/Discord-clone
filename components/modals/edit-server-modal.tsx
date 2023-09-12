@@ -1,5 +1,5 @@
 "use client";
-import { FC, useEffect, useState } from "react";
+import { FC, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import * as z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,8 +25,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/Button";
 import FileUpload from "@/components/file-upload";
+import { useModal } from "@/hooks/use-modal-store";
 
-interface InitialModalProps {}
+interface EditServerModalProps {}
 
 const formSchema = z.object({
   name: z.string().min(1, {
@@ -37,13 +38,12 @@ const formSchema = z.object({
   }),
 });
 
-const InitialModal: FC<InitialModalProps> = ({}) => {
-  const [isMounted, setIsMounted] = useState<boolean>(false);
+const EditServerModal: FC<EditServerModalProps> = ({}) => {
+  const { isOpen, onClose, type, data } = useModal();
   const router = useRouter();
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const isModalOpen = isOpen && type === "editServer";
+  const { server } = data;
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -53,25 +53,33 @@ const InitialModal: FC<InitialModalProps> = ({}) => {
     },
   });
 
+  useEffect(() => {
+    if (server) {
+      form.setValue("name", server.name);
+      form.setValue("imageUrl", server.imageUrl);
+    }
+  }, [server, form]);
+
   const isLoading = form.formState.isSubmitting;
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      await axios.post("/api/servers", values);
+      await axios.patch(`/api/servers/${server?.id}`, values);
       form.reset();
       router.refresh();
-      window.location.reload();
+      onClose();
     } catch (error: any) {
       console.log(error);
     }
   };
 
-  if (!isMounted) {
-    return null;
-  }
+  const handleClose = () => {
+    form.reset();
+    onClose();
+  };
 
   return (
-    <Dialog open>
+    <Dialog open={isModalOpen} onOpenChange={handleClose}>
       <DialogContent className="bg-white text-black p-0 overflow-hidden">
         <DialogHeader className="pt-8 px-6">
           <DialogTitle className="text-2xl text-center font-bold">
@@ -125,7 +133,7 @@ const InitialModal: FC<InitialModalProps> = ({}) => {
             </div>
             <DialogFooter className="bg-gray-100 px-6 py-4">
               <Button variant="primary" disabled={isLoading}>
-                Create
+                Save
               </Button>
             </DialogFooter>
           </form>
@@ -135,4 +143,4 @@ const InitialModal: FC<InitialModalProps> = ({}) => {
   );
 };
 
-export default InitialModal;
+export default EditServerModal;
